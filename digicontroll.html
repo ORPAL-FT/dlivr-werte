@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DIGI.CONTROLL — live</title>
+<style>
+  :root{--blue:#3f7cba;--tx:#2f6191;--lbl:#bccde6;--val:#e3ebf6;--val2:#d3deef;--yellow:#d9a400;--orange:#e5811c;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#54606e;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+       justify-content:center;gap:12px;padding:20px;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;}
+  .canvas{width:1040px;background:#fff;border-radius:6px;padding:20px 22px 24px;}
+  .head{display:flex;justify-content:space-between;align-items:baseline;color:var(--blue);
+        font-weight:700;font-size:30px;border-bottom:2px solid #a8c4e2;padding-bottom:8px;margin-bottom:18px;}
+  .main{display:grid;grid-template-columns:1.12fr .88fr;gap:20px;}
+  .left{display:flex;flex-direction:column;gap:18px;}
+  .poolrow{display:grid;grid-template-columns:1.85fr 1fr;gap:18px;align-items:start;}
+  .grid{display:grid;gap:6px;}
+  .cell{border-radius:6px;padding:11px 14px;font-weight:700;font-size:23px;line-height:1.1;}
+  .hd{background:var(--blue);color:#fff;}
+  .lbl{background:var(--lbl);color:var(--tx);text-align:right;}
+  .val{background:var(--val);color:var(--tx);text-align:right;font-size:25px;}
+  .alt{background:var(--val2);}
+  .yellow{color:var(--yellow)!important;}.orange{color:var(--orange)!important;}
+  .board{grid-template-columns:1.15fr 1fr 1fr;}.pool{grid-template-columns:1.2fr 1fr;}
+  .orders{grid-template-columns:1fr 78px;align-content:start;}
+  .orders .hd{grid-column:1/-1;}
+  .orders .ol{background:var(--val2);color:var(--tx);text-align:right;border-radius:6px;padding:9px 14px;font-weight:700;font-size:22px;}
+  .orders .ov{background:var(--val);color:var(--tx);text-align:right;border-radius:6px;padding:9px 14px;font-weight:700;font-size:22px;}
+  .bottom{display:grid;grid-template-columns:repeat(3,1fr);gap:44px;margin-top:20px;}
+  .pbox{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .pbox .title{grid-column:1/-1;background:var(--blue);color:#efc300;border-radius:6px;padding:9px 14px;font-weight:700;font-size:25px;}
+  .pbox .num{background:var(--val2);color:var(--tx);text-align:center;border-radius:6px;padding:9px;font-weight:700;font-size:24px;}
+  .status{color:#eee;font-size:13px;}.status b{color:#fff;}.err{color:#ffb3b3;}
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="head"><span id="loc">DIGI.CONTROLL- Standort: …</span><span id="ts">…</span></div>
+    <div class="main">
+      <div class="left">
+        <div class="grid board">
+          <div class="cell hd">Im Board</div><div class="cell hd">AW</div><div class="cell hd">AW nach LG</div>
+          <div class="cell lbl">Disponiert</div><div class="cell val" id="disp_aw"></div><div class="cell val" id="disp_lg"></div>
+          <div class="cell lbl">Fertig</div><div class="cell val alt" id="fertig_aw"></div><div class="cell val alt" id="fertig_lg"></div>
+          <div class="cell lbl yellow">Offen</div><div class="cell val yellow" id="offen_aw"></div><div class="cell val yellow" id="offen_lg"></div>
+        </div>
+        <div class="poolrow">
+          <div class="grid pool">
+            <div class="cell hd">Im Pool</div><div class="cell hd">AW</div>
+            <div class="cell lbl">Offen</div><div class="cell val" id="pool_offen"></div>
+            <div class="cell lbl">Fertig</div><div class="cell val alt" id="pool_fertig"></div>
+            <div class="cell lbl orange">Differenz</div><div class="cell val orange" id="pool_diff"></div>
+          </div>
+          <div class="grid">
+            <div class="cell hd">ME</div><div class="cell val" id="me"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid orders" id="orders">
+        <div class="cell hd">Anzahl Aufträge</div>
+      </div>
+    </div>
+    <div class="bottom" id="bottom"></div>
+  </div>
+  <div class="status"><b id="live">verbinde…</b> · alle 10 s · <span id="msg"></span></div>
+
+<script>
+  const BASE="https://uauciazqeshepefuvomd.supabase.co/rest/v1/rpc/get_digicontroll_trmnl";
+  const ANON="sb_publishable_iUP2BIQKC-Q7Y38Fw4uQsQ_GEab-nHH";
+  const standort=(new URLSearchParams(location.search)).get("standort")||"A";
+  const $=id=>document.getElementById(id);
+
+  function render(d){
+    $("loc").textContent="DIGI.CONTROLL- Standort: "+d.location;
+    $("ts").textContent=d.updated_at;
+    ["disp_aw","disp_lg","fertig_aw","fertig_lg","offen_aw","offen_lg"].forEach(k=>$(k).textContent=d["board_"+k]);
+    ["pool_offen","pool_fertig","pool_diff","me"].forEach(k=>$(k).textContent=d[k]);
+    const o=$("orders"); o.querySelectorAll(".ol,.ov").forEach(e=>e.remove());
+    (d.auftraege||[]).forEach(a=>{
+      const l=document.createElement("div"); l.className="ol"; l.textContent=a.label;
+      const v=document.createElement("div"); v.className="ov"; v.textContent=a.value;
+      o.append(l,v);
+    });
+    const b=$("bottom"); b.innerHTML="";
+    (d.progress||[]).forEach(p=>{
+      const box=document.createElement("div"); box.className="pbox";
+      box.innerHTML=`<div class="title"></div><div class="num"></div><div class="num"></div><div class="num"></div>`;
+      box.querySelector(".title").textContent=p.title;
+      const nums=box.querySelectorAll(".num");
+      nums[0].textContent=p.a; nums[1].textContent=p.b; nums[2].textContent=p.pct;
+      b.append(box);
+    });
+  }
+  async function tick(){
+    try{
+      const r=await fetch(BASE+"?p_standort="+encodeURIComponent(standort),
+        {headers:{apikey:ANON,authorization:"Bearer "+ANON}});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const d=await r.json();
+      if(!d){$("live").textContent="Standort "+standort+" nicht gefunden";$("live").classList.add("err");return;}
+      render(d);
+      $("live").textContent="live";$("live").classList.remove("err");
+      $("msg").textContent="zuletzt: "+new Date().toLocaleTimeString("de-DE");
+    }catch(e){$("live").textContent="getrennt";$("live").classList.add("err");$("msg").textContent=String(e.message||e);}
+  }
+  tick(); setInterval(tick,10000);
+</script>
+</body>
+</html>
